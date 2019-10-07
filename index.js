@@ -11,9 +11,9 @@ import path from 'path'
 import { io } from './src/lib/socket';
 const gzipStatic = require('connect-gzip-static');
 import models from '@models'
-const sgMail = require('@sendgrid/mail');
 const fs = require('fs')
-sgMail.setApiKey('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');
+var cron = require('node-cron');
+
 
 let lastEmail = null
 
@@ -43,10 +43,8 @@ var corsOptions = {
     }
 };
 
-// app.use(express.static('public'));
 app.use(cors(corsOptions));
 app.use('/', graphRouter);
-// app.use(gzipStatic(path.join(__dirname, './src/routes/public')));
 
 /**
  * Error formatter/handler
@@ -74,6 +72,15 @@ app.use(function (err, req, res, next) {
     return next()
 })
 
+io.use(function (socket, next) {
+    var handshakeData = socket.request;
+    const { user_uuid } = handshakeData._query
+    if (user_uuid) {
+        socket.join(`user_${handshakeData._query.user_uuid}`)
+    }
+    next();
+});
+
 io.on('connection', function (socket) {
     console.log('CONNECTED USER');
 });
@@ -81,4 +88,15 @@ io.on('connection', function (socket) {
 const httpServer = http.createServer(app);
 httpServer.listen(5010, () => {
     console.log('HTTP Server running on 5010')
+    cron.schedule('* * * * *', () => {
+        console.log('running a task every minute');
+        io.emit('new.stock.value', {
+            "uuid": "79d7cce6-c2db-4f17-9df0-f1f624c3e96d",
+            "stock_uuid": "e44f0c5d-47b8-42f5-b44b-17208bc89929",
+            "close_price": 250.6,
+            "timestamp": "06/10/2019 12:02",
+            "change_price": -6.83,
+            "change_percent": -2.653
+        })
+    });
 })

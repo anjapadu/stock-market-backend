@@ -22,6 +22,9 @@ export default (sequelize, DataTypes) => {
     },
     currency: {
       type: DataTypes.STRING
+    },
+    companylogo: {
+      type: DataTypes.STRING
     }
 
   }, {

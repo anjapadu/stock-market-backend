@@ -18,7 +18,7 @@ app.use(graphqlEndpoint, (req, res) => {
         schema,
         graphiql: ide,
         pretty,
-        formatError: function (err) {
+        customFormatErrorFn: function (err) {
             return err.message
         }
     })(req, res)

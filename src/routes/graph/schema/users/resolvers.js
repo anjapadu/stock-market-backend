@@ -30,12 +30,22 @@ export async function findUser({ user_uuid }, data, _, __) {
 }
 
 export async function logInUser(_parent, { username, password }, _, __) {
-    return await models.users.findOne({
+
+    const userResponse = await models.users.findOne({
         where: {
-            username,
-            password
-        }
+            username: {
+                [models.Sequelize.Op.iLike]: username
+            }
+        },
+        raw: true
     })
+    if (!userResponse) {
+        throw new Error('NOT_FOUND')
+    }
+    if (userResponse['password'] !== password) {
+        throw new Error('WRONG_PASS')
+    }
+    return userResponse
 }
 
 // export async function createUser(_parent, data, _, __) {

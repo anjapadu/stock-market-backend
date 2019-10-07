@@ -27,6 +27,9 @@ export default new GraphQLObjectType({
                 type: GraphQLString,
                 description: 'Description of the stock'
             },
+            companylogo: {
+                type: GraphQLString,
+            },
             companyname: {
                 type: GraphQLString,
                 description: 'Company that own the stock'

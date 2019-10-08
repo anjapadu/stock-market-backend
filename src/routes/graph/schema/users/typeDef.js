@@ -31,6 +31,9 @@ export default new GraphQLObjectType({
             },
             balance: {
                 type: GraphQLFloat,
+                resolve: ({ balance }) => {
+                    return balance
+                }
             }
         }
     }

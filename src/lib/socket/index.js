@@ -5,7 +5,7 @@ import { Server } from 'http';
 const app = express()
 const server = Server(app);
 
-const socket = io(server)
+const socket = io(server, { origins: '*:*' })
 
 server.listen(5020, () => {
   console.log('SOCKEET WORKING ON 5020')

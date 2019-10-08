@@ -74,9 +74,10 @@ app.use(function (err, req, res, next) {
 
 io.use(function (socket, next) {
     var handshakeData = socket.request;
-    const { user_uuid } = handshakeData._query
-    if (user_uuid) {
-        socket.join(`user_${handshakeData._query.user_uuid}`)
+    const { userUUID } = handshakeData._query
+    if (userUUID) {
+        console.log('CONECTO A USER SOCKET')
+        socket.join(`user-${userUUID}`)
     }
     next();
 });
@@ -84,19 +85,34 @@ io.use(function (socket, next) {
 io.on('connection', function (socket) {
     console.log('CONNECTED USER');
 });
+async function fetchRandom() {
+
+    const response = (await models.sequelize.query("SELECT * FROM stock_price ORDER BY RANDOM() LIMIT 1", {
+        type: models.Sequelize.QueryTypes.SELECT
+    }))[0]
+    let toSum = parseFloat(((Math.random() * 5) + 1))
+    toSum *= Math.floor(Math.random() * 2) == 1 ? 1 : -1;
+    const changePercent = 100 - ((parseFloat(response["close_price"]) / (toSum + parseFloat(response["close_price"]))) * 100)
+    response["close_price"] = parseFloat((parseFloat(response["close_price"]) + toSum).toFixed(3))
+    response["change_price"] = parseFloat(toSum.toFixed(3))
+    response["change_percent"] = parseFloat(changePercent.toFixed(3))
+    response["timestamp"] = moment().format('DD/MM/YYYY HH:mm')
+    return response
+    // 100 - 250.6
+    // %     230.6
+}
+
+setInterval(async () => {
+    const data = await fetchRandom()
+    io.emit('new.stock.value', data)
+}, 1000)
 
 const httpServer = http.createServer(app);
 httpServer.listen(5010, () => {
     console.log('HTTP Server running on 5010')
-    cron.schedule('* * * * *', () => {
+    cron.schedule('* * * * *', async () => {
         console.log('running a task every minute');
-        io.emit('new.stock.value', {
-            "uuid": "79d7cce6-c2db-4f17-9df0-f1f624c3e96d",
-            "stock_uuid": "e44f0c5d-47b8-42f5-b44b-17208bc89929",
-            "close_price": 250.6,
-            "timestamp": "06/10/2019 12:02",
-            "change_price": -6.83,
-            "change_percent": -2.653
-        })
+        const data = await fetchRandom()
+        // io.emit('new.stock.value', data)
     });
 })

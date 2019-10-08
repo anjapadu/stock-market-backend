@@ -6,7 +6,7 @@ import {
 } from 'graphql';
 import UserType from './typeDef';
 import {
-    logInUser,
+    logInUser, findUser,
 } from './resolvers';
 
 const queries = {},
@@ -27,6 +27,17 @@ queries.login = {
         }
     },
     resolve: logInUser
+}
+
+queries.user = {
+    type: UserType,
+    description: '',
+    args: {
+        uuid: {
+            type: GraphQLNonNull(GraphQLString)
+        }
+    },
+    resolve: findUser
 }
 
 // queries.users = {

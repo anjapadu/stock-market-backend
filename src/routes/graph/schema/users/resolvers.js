@@ -17,11 +17,11 @@ export async function fetchUsers(_parent, data, _, __) {
     }
 }
 
-export async function findUser({ user_uuid }, data, _, __) {
+export async function findUser({ user_uuid } = {}, { uuid }, _, __) {
     try {
         return await models.users.findOne({
             where: {
-                uuid: user_uuid
+                uuid: user_uuid || uuid
             }
         })
     } catch (e) {

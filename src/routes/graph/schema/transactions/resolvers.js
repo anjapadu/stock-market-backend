@@ -1,4 +1,5 @@
 import models from '@models';
+import { io } from '../../../../lib/socket';
 
 
 export async function fetchTransactions(_parent, { user_uuid }) {
@@ -42,9 +43,7 @@ async function checkIfTransactionIsValid(user_uuid, total, quantity, is_buy, sto
 }
 
 async function updateBalance(is_buy, total, balance, user_uuid) {
-    console.log('at update', { balance })
-    console.log({ total })
-    console.log('NEW BALANCE', (balance + (is_buy ? (-1 * total) : total)))
+
     models.users.update({
         balance: (balance + (is_buy ? (-1 * total) : total))
     }, {
@@ -52,6 +51,9 @@ async function updateBalance(is_buy, total, balance, user_uuid) {
             uuid: user_uuid
         }
     })
+    if (io.sockets.adapter.rooms[`user-${user_uuid}`]) {
+        io.to(`user-${user_uuid}`).emit('new.balance', (balance + (is_buy ? (-1 * total) : total)))
+    }
 }
 
 async function createOrChangeHoldings(stock_uuid, user_uuid, quantity, is_buy) {
@@ -63,14 +65,23 @@ async function createOrChangeHoldings(stock_uuid, user_uuid, quantity, is_buy) {
         raw: true
     })
     if (!holding) {
-        const responseCreate = await models.holdings.create({
+        await models.holdings.create({
             stock_uuid,
             user_uuid,
             quantity
         }).then((result) => result.get({ plan: true }))
+
+        if (io.sockets.adapter.rooms[`user-${user_uuid}`]) {
+            io.to(`user-${user_uuid}`).emit('upsert.holding', {
+                stock_uuid,
+                quantity
+            })
+        }
+
     } else {
-        const responseUpdate = await models.holdings.update({
-            quantity: holding['quantity'] + (is_buy ? quantity : -quantity)
+        const newQuantity = holding['quantity'] + (is_buy ? quantity : -quantity)
+        await models.holdings.update({
+            quantity: newQuantity
         }, {
             where: {
                 stock_uuid,
@@ -78,7 +89,20 @@ async function createOrChangeHoldings(stock_uuid, user_uuid, quantity, is_buy) {
             },
             raw: true
         })
-        console.log({ responseUpdate })
+        if (newQuantity == 0) {
+            await models.holdings.destroy({
+                where: {
+                    stock_uuid,
+                    user_uuid
+                }
+            })
+        }
+        if (io.sockets.adapter.rooms[`user-${user_uuid}`]) {
+            io.to(`user-${user_uuid}`).emit('upsert.holding', {
+                stock_uuid,
+                quantity: holding['quantity'] + (is_buy ? quantity : -quantity)
+            })
+        }
     }
 
 }

@@ -35,6 +35,9 @@ export default (sequelize, DataTypes) => {
     models.stocks.hasMany(models.stock_price, {
       foreignKey: 'uuid'
     })
+    models.stocks.hasMany(models.future_values, {
+      foreignKey: 'uuid'
+    })
   }
   stocks.beforeCreate((stock, _) => {
     return stock.uuid = uuid();

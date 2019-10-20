@@ -17,8 +17,27 @@ export async function fetchUsers(_parent, data, _, __) {
     }
 }
 
+export async function getParams() {
+    return {
+        comission: global.comission,
+        exchangeRate: global.exchangeRate,
+        status: global.status
+    }
+}
+
 export async function findUser({ user_uuid } = {}, { uuid }, _, __) {
     try {
+
+        if (uuid === '') {
+            console.log('LLEGO VACIO')
+            return {
+                uuid: null,
+                username: null,
+                admin: false,
+                balance: null,
+            }
+        }
+
         return await models.users.findOne({
             where: {
                 uuid: user_uuid || uuid
@@ -26,6 +45,12 @@ export async function findUser({ user_uuid } = {}, { uuid }, _, __) {
         })
     } catch (e) {
         console.log(e)
+        return {
+            uuid: null,
+            username: null,
+            admin: false,
+            balance: null,
+        }
     }
 }
 

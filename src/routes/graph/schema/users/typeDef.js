@@ -7,6 +7,10 @@ import {
     GraphQLFloat
 } from 'graphql';
 import DateGenerator from '../_customTypes/DateGenerator'
+import HoldingType from '../holdings/typeDef'
+import ParamsType from '../params/typeDef'
+import { fetchUsersHoldings, fetchHoldings } from '../holdings/resolvers';
+import { getParams } from './resolvers';
 
 export default new GraphQLObjectType({
     name: 'users',
@@ -21,10 +25,6 @@ export default new GraphQLObjectType({
                 type: GraphQLString,
                 description: 'Username of the user'
             },
-            // password: {
-            //     type: GraphQLString,
-            //     description: 'Password for the user'
-            // },
             admin: {
                 type: GraphQLBoolean,
                 description: 'User flag admin'
@@ -34,6 +34,14 @@ export default new GraphQLObjectType({
                 resolve: ({ balance }) => {
                     return balance
                 }
+            },
+            holdings: {
+                type: GraphQLList(HoldingType),
+                resolve: fetchHoldings
+            },
+            params: {
+                type: ParamsType,
+                resolve: getParams
             }
         }
     }

@@ -25,6 +25,12 @@ import {
 } from './transactions';
 
 
+import {
+    queries as paramsQueries,
+    mutations as paramsMutations
+} from './params';
+
+
 
 
 // console.log(customerQueries)
@@ -45,6 +51,7 @@ const mutation = new GraphQLObjectType({
     description: 'All the methods to create, modify of create data',
     fields: () => ({
         ...transactionsMutation,
+        ...paramsMutations
     })
 })
 

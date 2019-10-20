@@ -6,7 +6,7 @@ const databaseConfig = {
     "password": "",
     "database": "stockmkt",
     "host": "localhost",
-    "port": "5432",
+    "port": "5445",
     "dialect": "postgres"
 }
 console.log({ databaseConfig });

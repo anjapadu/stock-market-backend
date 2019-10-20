@@ -5,6 +5,8 @@ import stocks from './stocks'
 import stock_price from './stock_price'
 import transactions from './transactions'
 import holdings from './holdings'
+import params from './params'
+import future_values from './future_values'
 
 const models = {
   users: databaseConnection.import("users", users),
@@ -12,6 +14,8 @@ const models = {
   stock_price: databaseConnection.import("stock_price", stock_price),
   holdings: databaseConnection.import("holdings", holdings),
   transactions: databaseConnection.import("transactions", transactions),
+  params: databaseConnection.import("params", params),
+  future_values: databaseConnection.import("future_values", future_values),
 }
 
 Object.keys(models).forEach((modelName) => {

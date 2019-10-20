@@ -27,7 +27,9 @@ export default (sequelize, DataTypes) => {
     timestamps: false
   })
   stock_price["associate"] = (models) => {
-
+    models.stock_price.belongsTo(models.stocks, {
+      foreignKey: 'stock_uuid'
+    })
   }
   stock_price.beforeCreate((stock_price, _) => {
     return stock_price.uuid = uuid();

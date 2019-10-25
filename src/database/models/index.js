@@ -25,6 +25,7 @@ Object.keys(models).forEach((modelName) => {
 })
 
 models.sequelize = databaseConnection;
+Sequelize.postgres.DECIMAL.parse = function (value) { return parseFloat(value); };
 models.Sequelize = Sequelize;
 
 export default models;

@@ -2,12 +2,18 @@ import {
     GraphQLList,
     GraphQLInt,
     GraphQLNonNull,
-    GraphQLString
+    GraphQLString,
+    GraphQLBoolean
 } from 'graphql';
 import UserType from './typeDef';
 import {
-    logInUser, findUser, fetchUsers,
+    logInUser,
+    findUser,
+    fetchUsers,
+    createUser,
+    destroyUser
 } from './resolvers';
+import { SuccessType } from '../_customTypes/outputTypes'
 
 const queries = {},
     mutations = {};
@@ -46,29 +52,32 @@ queries.users = {
 
     resolve: fetchUsers
 }
-
-// queries.users = {
-//     type: GraphQLList(UserType),
-//     description: 'List all users in the system',
-//     resolve: fetchUsers
-// }
-
-
-
 /*********************/
 
-// mutations.createUser = {
-//     type: UserType,
-//     description: 'Allows to create a new user',
-//     args: {
-//         username: {
-//             type: GraphQLString,
-//             description: 'Email of the user'
-//         }
-//     },
-//     resolve: createUser
-// }
+mutations.createUser = {
+    type: UserType,
+    description: 'Allows to create a new user',
+    args: {
+        username: {
+            type: GraphQLNonNull(GraphQLString),
+            description: 'Email of the user'
+        },
+        password: {
+            type: GraphQLNonNull(GraphQLString)
+        }
+    },
+    resolve: createUser
+}
 
+mutations.deleteUser = {
+    type: SuccessType,
+    args: {
+        uuid: {
+            type: GraphQLString
+        }
+    },
+    resolve: destroyUser
+}
 
 
 export {

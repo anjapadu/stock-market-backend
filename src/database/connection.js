@@ -19,7 +19,7 @@ const connection = new Sequelize({
     database: db.database,
     host: db.host,
     dialect: db.dialect,
-    dialectOptions: { decimalNumbers: true }
+    // dialectOptions: { decimalNumbers: true }
 
 });
 

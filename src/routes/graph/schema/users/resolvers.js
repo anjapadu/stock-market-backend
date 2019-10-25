@@ -73,42 +73,55 @@ export async function logInUser(_parent, { username, password }, _, __) {
     return userResponse
 }
 
-// export async function createUser(_parent, data, _, __) {
-//     const { username } = data;
-//     const count = await models.users.count({
-//         where: {
-//             username
-//         },
-//         raw: true
-//     })
-//     if (count > 0) {
-//         throw new Error('USER_EXISTS')
-//     }
-//     try {
-//         let newGeneratedPassword = generatePassword(8);
-//         console.log({ newGeneratedPassword });
-//         const password = await bcrypt.hash(newGeneratedPassword, saltRounds);
-//         const insertQuery = await models.users.create({
-//             username,
-//             password,
-//             name: username
-//         }, {
-//                 isNewRecord: true,
-//                 raw: true
-//             });
-//         let response = insertQuery.get({ plain: true });
-//         response["token"] = 'Bearer ' + encode(JSON.stringify({
-//             id: response.idUser,
-//             isAdmin: response.isAdmin,
-//             expiration: null,
-//             createdAt: moment().unix()
-//         }));
-//         return response;
-//     } catch (e) {
-//         console.log('Error createUser', e)
-//     }
+export async function destroyUser(_, { uuid }) {
+    await models.transactions.destroy({
+        where: {
+            user_uuid: uuid
+        }
+    })
 
-// }
+    await models.holdings.destroy({
+        where: {
+            user_uuid: uuid
+        }
+    })
+    
+    await models.users.destroy({
+        where: {
+            uuid
+        }
+    })
+    return true
+}
+
+export async function createUser(_parent, data, _, __) {
+    const { username, password } = data;
+    const count = await models.users.count({
+        where: {
+            username: {
+                [models.Sequelize.Op.iLike]: username
+            }
+        },
+        raw: true
+    })
+    if (count > 0) {
+        throw new Error('USER_EXISTS')
+    }
+    try {
+
+        const insertQuery = await models.users.create({
+            username,
+            password,
+        }, {
+            isNewRecord: true,
+            raw: true
+        });
+        return insertQuery.get({ plain: true });
+    } catch (e) {
+        console.log('Error createUser', e)
+    }
+
+}
 
 
 // export async function logInUser(_parent, data, _, __) {

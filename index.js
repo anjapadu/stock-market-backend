@@ -12,6 +12,8 @@ import { io } from './src/lib/socket';
 const gzipStatic = require('connect-gzip-static');
 import models from '@models'
 const fs = require('fs')
+import uuid from 'uuid/v4'
+
 var cron = require('node-cron');
 
 global.comission = null;
@@ -74,6 +76,7 @@ var corsOptions = {
     }
 };
 
+
 app.use(cors(corsOptions));
 app.use('/', graphRouter);
 
@@ -116,99 +119,130 @@ io.use(function (socket, next) {
 io.on('connection', function (socket) {
     console.log('CONNECTED USER');
 });
-// async function fetchRandom() {
-
-//     const response = (await models.sequelize.query("SELECT * FROM stock_price ORDER BY RANDOM() LIMIT 1", {
-//         type: models.Sequelize.QueryTypes.SELECT
-//     }))[0]
-//     let toSum = parseFloat(((Math.random() * 5) + 1))
-//     toSum *= Math.floor(Math.random() * 2) == 1 ? 1 : -1;
-// const changePercent = 100 - ((parseFloat(response["close_price"]) / (toSum + parseFloat(response["close_price"]))) * 100)
-//     response["close_price"] = parseFloat((parseFloat(response["close_price"]) + toSum).toFixed(3))
-//     response["change_price"] = parseFloat(toSum.toFixed(3))
-//     response["change_percent"] = parseFloat(changePercent.toFixed(3))
-//     response["timestamp"] = moment().format('DD/MM/YYYY HH:mm')
-//     return response
-//     // 100 - 250.6
-//     // %     230.6
-// }
 
 
-var randomObjectKey = function (obj) {
-    var keys = Object.keys(obj)
-    return keys[keys.length * Math.random() << 0];
-};
-
-
-
-// const ids = fetchStocksIds()
-// const stockIds =
-async function fetchAndUpdateFutureValue(stock_uuid = randomObjectKey(global.ids)) {
-    const result = await models.future_values.findOne({
+async function fetchAndUpdateFutureValues(isShot = false) {
+    const futureValues = await models.future_values.findAll({
         where: {
             sent: false,
-            stock_uuid: stock_uuid
+            timestamp: models.Sequelize.literal('future_values.timestamp = (SELECT MIN(timestamp) FROM future_values as fv WHERE fv.stock_uuid = future_values.stock_uuid AND fv.sent is not true)')
         },
         order: [
             ['timestamp', 'ASC']
         ],
         raw: true
     })
-    if (!result) {
-        fetchAndUpdateFutureValue()
+    if (!futureValues || futureValues.length === 0) {
+        return;
     }
-    if (result.has_new) {
-        io.emit('show.new', {
-            new: result.new_text
-        })
-    }
-
-    const lastPrice = await models.stock_price.findOne({
+    const lastPricesByStock = (await models.stock_price.findAll({
         where: {
-            stock_uuid,
+            timestamp: models.Sequelize.literal('timestamp = (SELECT MAX(timestamp) FROM stock_price as sp WHERE sp.stock_uuid = stock_price.stock_uuid)')
         },
-        order: [['timestamp', 'DESC']]
+        raw: true
+    })).reduce((prev, curr) => {
+        prev[curr.stock_uuid] = curr
+        return prev
+    }, {})
+
+    const newValuesToEnter = futureValues.map((newValue) => {
+        const lastPrice = lastPricesByStock[newValue.stock_uuid]['close_price']
+        const changePercent = 100 - ((lastPrice / (newValue['new_price'])) * 100)
+        const changePrice = newValue['new_price'] - lastPrice
+        return {
+            uuid: uuid(),
+            hasNew: newValue.has_new,
+            newText: newValue.new_text,
+            stock_uuid: newValue.stock_uuid,
+            close_price: newValue['new_price'].toFixed(2),
+            timestamp: moment().format('YYYY-MM-DD HH:mm:ss'),
+            change_price: changePrice.toFixed(2),
+            change_percent: changePercent.toFixed(2)
+        }
     })
-    const changePercent = 100 - ((parseFloat(lastPrice['close_price']) / (result['new_price'])) * 100)
-    const changePrice = parseFloat(result['new_price']) - parseFloat(lastPrice['close_price'])
 
-    const newStockPrice = await models.stock_price.create({
-        stock_uuid,
-        close_price: parseFloat(result['new_price']).toFixed(2),
-        timestamp: moment(result['timestamp']).format('YYYY-MM-DD HH:mm'),
-        change_price: parseFloat(changePrice).toFixed(2),
-        change_percent: parseFloat(changePercent).toFixed(2)
-    }).then((result) => result.get({ plain: true }))
-
-    io.emit('new.stock.value', {
-        ...newStockPrice,
-        timestamp: moment(newStockPrice.timestamp).format('DD/MM/YYYY @ HH:mm')
+    const valuesWithNews = newValuesToEnter.filter((item) => item.hasNew)
+    const news = valuesWithNews.map((item) => ({
+        stockUUID: item.stock_uuid,
+        new: item.newText
+    }))
+    io.emit('new.new', {
+        news,
+        time: moment().format('DD/MM/YYYY_HH:mm:ss')
     })
+    setTimeout(async () => {
+        const newPricesToSendLater = await models.stock_price.bulkCreate(valuesWithNews, { returning: true })
+        const newPricesUUIDs = newPricesToSendLater.reduce((prev, curr) => {
+            prev[curr['stock_uuid']] = curr.uuid
+            return prev
+        }, {})
+        const idsToUpdateLater = valuesWithNews.map((item) => item.stock_uuid)
+        await models.future_values.update({
+            sent: true
+        }, {
+            where: {
+                timestamp: models.Sequelize.literal('future_values.timestamp = (SELECT MIN(timestamp) FROM future_values as fv WHERE fv.stock_uuid = future_values.stock_uuid AND sent IS NOT true)'),
+                stock_uuid: {
+                    [models.Sequelize.Op.in]: idsToUpdateLater
+                }
+            }
+        })
+        const values = valuesWithNews.reduce((prev, curr) => {
+            prev[curr["stock_uuid"]] = {
+                ...curr,
+                priceUUID: newPricesUUIDs[curr["stock_uuid"]]
+            }
+            return prev
+        }, {})
+        io.emit('new.stock.values', {
+            values
+        })
+    }, (isShot ? 500 : 120000))
 
+    const valuesWithoutNew = newValuesToEnter.filter((item) => !item.hasNew)
+    const newPricesToSendNow = await models.stock_price.bulkCreate(valuesWithoutNew, { returning: true })
+    const idsToUpdateNow = valuesWithoutNew.map((item) => item.stock_uuid)
+
+    const newPricesUUIDs = newPricesToSendNow.reduce((prev, curr) => {
+        prev[curr['stock_uuid']] = curr.uuid
+        return prev
+    }, {})
     await models.future_values.update({
         sent: true
     }, {
         where: {
-            uuid: result['uuid']
+            timestamp: models.Sequelize.literal('future_values.timestamp = (SELECT MIN(timestamp) FROM future_values as fv WHERE fv.stock_uuid = future_values.stock_uuid AND sent IS NOT true)'),
+            stock_uuid: {
+                [models.Sequelize.Op.in]: idsToUpdateNow
+            }
         }
+    })
+    const values = valuesWithoutNew.reduce((prev, curr) => {
+        prev[curr["stock_uuid"]] = {
+            ...curr,
+            priceUUID: newPricesUUIDs[curr["stock_uuid"]]
+        }
+        return prev
+    }, {})
+    io.emit('new.stock.values', {
+        values
     })
 }
 
-setInterval(async () => {
-    // console.log('GLOBAL.IDS', global.ids)
-    // console.log('randomObjectKey(global.ids)', randomObjectKey(global.ids))
-    // await fetchAndUpdateFutureValue()
-    // io.emit('new.stock.value', data)
-}, 5000)
+
+app.get('/shot', (req, res) => {
+    fetchAndUpdateFutureValues(true)
+    res.status(200).send({
+        success: true
+    })
+})
 
 const httpServer = http.createServer(app);
 httpServer.listen(5015, () => {
     console.log('HTTP Server running on 5010')
-    cron.schedule('* * * * *', async () => {
+    cron.schedule('*/3 * * * *', async () => {
         console.log('Sending New Value');
-        // const data = await fetchRandom()
-        // io.emit('new.stock.value', data)
-        // if (global.status === 'STARTED')
-        //     await fetchAndUpdateFutureValue()
+        if (global.status === 'STARTED')
+            fetchAndUpdateFutureValues()
     });
 })

@@ -11,7 +11,7 @@ export default (sequelize, DataTypes) => {
       type: DataTypes.UUID
     },
     close_price: {
-      type: DataTypes.STRING
+      type: DataTypes.DECIMAL
     },
     timestamp: {
       type: DataTypes.STRING

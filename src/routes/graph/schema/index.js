@@ -31,6 +31,12 @@ import {
 } from './params';
 
 
+import {
+    queries as oldNewsQueries,
+    mutations as oldNewsMutations
+} from './old_news';
+
+
 
 
 // console.log(customerQueries)
@@ -42,7 +48,8 @@ const query = new GraphQLObjectType({
         ...stocksQueries,
         ...stockPriceQueries,
         ...holdingsQueries,
-        ...transactionsQueries
+        ...transactionsQueries,
+        ...oldNewsQueries,
     })
 })
 
@@ -51,7 +58,8 @@ const mutation = new GraphQLObjectType({
     description: 'All the methods to create, modify of create data',
     fields: () => ({
         ...transactionsMutation,
-        ...paramsMutations
+        ...paramsMutations,
+        ...userMutations
     })
 })
 

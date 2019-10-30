@@ -6,7 +6,7 @@ import {
   GraphQLBoolean,
   GraphQLFloat,
 } from 'graphql';
-import { updateStatus, updateExchangeRate, updateComission } from './resolvers';
+import { updateStatus, updateExchangeRate, updateComission, resetGame } from './resolvers';
 
 
 const queries = {},
@@ -23,6 +23,11 @@ const SuccessResponse = new GraphQLObjectType({
     }
   }
 })
+
+mutations.resetValues = {
+  type: SuccessResponse,
+  resolve: resetGame
+}
 
 mutations.changeComission = {
   type: SuccessResponse,
